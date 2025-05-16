@@ -3,7 +3,7 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-echo "🚀 开始针对 Ubuntu/Debian/macOS 安装 Zsh 和常用插件 🚀"
+echo "🚀 开始针对 Ubuntu/Debian/macOS 安装 Zsh 和常用插件 (尝试新 Oh My Zsh 地址) 🚀"
 
 # --- Helper function to check and run commands ---
 run_command() {
@@ -30,7 +30,7 @@ detect_os_package_manager() {
              UPDATE_CMD="" # dnf install handles updates implicitly
              INSTALL_CMD="sudo dnf install -y"
         elif command -v yum &> /dev/null; then
-             echo "ℹ️ 检测到 Linux (可能为 CentOS/RHEL)，使用 yum 进行包管理。"
+             echo "ℹ️ 检测到 Linux (可能为 CentOS/RHLE)，使用 yum 进行包管理。"
              PACKAGE_MANAGER="yum"
              UPDATE_CMD="" # yum install handles updates implicitly
              INSTALL_CMD="sudo yum install -y"
@@ -92,14 +92,17 @@ install_package zsh
 
 # --- 3. Install Oh My Zsh ---
 OHMYZSH_DIR="$HOME/.oh-my-zsh"
+# !! UPDATED URL !!
+OHMYZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/main/install.sh"
+
 if [ -d "$OHMYZSH_DIR" ]; then
     echo "✅ Oh My Zsh 已安装."
 else
-    echo "📦 安装 Oh My Zsh..."
+    echo "📦 安装 Oh My Zsh (从 $OHMYZSH_INSTALL_URL)..."
     # Set CHSH=no and RUNZSH=no to prevent the Oh My Zsh installer from
     # changing default shell and immediately starting zsh. We handle this later.
-    CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || {
-        echo "❌ Oh My Zsh 安装脚本下载或执行失败。请检查网络连接或curl。"
+    CHSH=no RUNZSH=no sh -c "$(curl -fsSL $OHMYZSH_INSTALL_URL)" || {
+        echo "❌ Oh My Zsh 安装脚本下载或执行失败。请检查网络连接或curl，并确认URL ($OHMYZSH_INSTALL_URL) 可访问。"
         exit 1
     }
 
@@ -176,7 +179,6 @@ if [ -f "$ZSHRC" ]; then
     if grep -q "^\s*plugins=(.*)" "$ZSHRC" && ! grep -q "zsh-autosuggestions" "$ZSHRC"; then
         echo "    - 添加 zsh-autosuggestions 到 plugins 列表..."
         # Use sed to find the line starting with plugins=( and insert the plugin before the closing )
-        # This regex is more specific: finds plugins=(...anything) and replaces it with plugins=(...anything zsh-autosuggestions)
         eval "sed $SED_INPLACE 's/^plugins=(\(.*\))$/plugins=(\1 zsh-autosuggestions)/' \"$ZSHRC\"" || echo "⚠️ 添加 zsh-autosuggestions 到 plugins 列表失败。请手动检查 $ZSHRC。"
     fi
 
@@ -202,10 +204,21 @@ if [ "$CURRENT_SHELL" = "zsh" ]; then
 elif [ -n "$ZSH_PATH" ]; then
     echo "⚙️ 尝试将 Zsh ($ZSH_PATH) 设置为默认 Shell (需要输入用户密码)..."
     # Use `chsh` to change the default shell. Requires user password.
-    if chsh -s "$ZSH_PATH" "$USER"; then
-        echo "✅ Zsh 已设置为你的默认 Shell (对未来登录生效)。"
+    # Check if running as root, chsh root is different/not needed for user shell
+    if [ "$USER" = "root" ]; then
+       echo "ℹ️ 检测到当前用户是 root，通常无需为 root 用户更改默认 shell。"
+       echo "   如果你需要为其他用户设置 Zsh，请以该用户身份运行脚本。"
+       # Optional: offer to change shell for a specific user
+       # read -p "请输入要更改shell的用户名 (留空则跳过): " target_user
+       # if [ -n "$target_user" ]; then
+       #     chsh -s "$ZSH_PATH" "$target_user"
+       # fi
     else
-        echo "❌ 设置默认 Shell 失败。请尝试手动运行 'chsh -s $(command -v zsh)' 并输入密码。"
+        if chsh -s "$ZSH_PATH" "$USER"; then
+            echo "✅ Zsh 已设置为你的默认 Shell (对未来登录生效)。"
+        else
+            echo "❌ 设置默认 Shell 失败。请尝试手动运行 'chsh -s $(command -v zsh)' 并输入密码。"
+        fi
     fi
 else
     echo "❌ 未找到 Zsh 可执行文件。无法设置默认 Shell。"
