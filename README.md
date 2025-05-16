@@ -33,3 +33,4 @@ Supported OS: Ubuntu, Debian, macOS
 For other distributions (CentOS, Arch, etc.), you may need to tweak the installation logic
 
 ## 📸 Screenshot
+![1747394880770.png](https://pics.xotter.top/i/5cee961057e3cd73091b9237efe3717b/6827214448f1b.png)
