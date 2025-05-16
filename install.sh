@@ -3,7 +3,7 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-echo "🚀 开始针对 Ubuntu/Debian/macOS 安装 Zsh 和常用插件 (尝试新 Oh My Zsh 地址) 🚀"
+echo "🚀 开始针对 Ubuntu/Debian/macOS 安装 Zsh 和常用插件 🚀"
 
 # --- Helper function to check and run commands ---
 run_command() {
@@ -92,32 +92,65 @@ install_package zsh
 
 # --- 3. Install Oh My Zsh ---
 OHMYZSH_DIR="$HOME/.oh-my-zsh"
-# !! UPDATED URL !!
-OHMYZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/main/install.sh"
+# 使用最新的安装URL
+OHMYZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 
 if [ -d "$OHMYZSH_DIR" ]; then
     echo "✅ Oh My Zsh 已安装."
 else
     echo "📦 安装 Oh My Zsh (从 $OHMYZSH_INSTALL_URL)..."
-    # Set CHSH=no and RUNZSH=no to prevent the Oh My Zsh installer from
-    # changing default shell and immediately starting zsh. We handle this later.
-    CHSH=no RUNZSH=no sh -c "$(curl -fsSL $OHMYZSH_INSTALL_URL)" || {
-        echo "❌ Oh My Zsh 安装脚本下载或执行失败。请检查网络连接或curl，并确认URL ($OHMYZSH_INSTALL_URL) 可访问。"
+    # 创建临时文件保存安装脚本
+    TEMP_INSTALL_SCRIPT=$(mktemp)
+    
+    # 下载安装脚本到临时文件
+    if curl -fsSL "$OHMYZSH_INSTALL_URL" -o "$TEMP_INSTALL_SCRIPT"; then
+        echo "✅ Oh My Zsh 安装脚本下载成功。"
+        
+        # 检查脚本内容以确保下载完整
+        if [ -s "$TEMP_INSTALL_SCRIPT" ]; then
+            echo "✅ 安装脚本内容检查通过。"
+        else
+            echo "❌ 安装脚本下载不完整（文件为空）。请检查网络连接。"
+            rm -f "$TEMP_INSTALL_SCRIPT"
+            exit 1
+        fi
+        
+        # 设置权限
+        chmod +x "$TEMP_INSTALL_SCRIPT"
+        
+        # 执行安装脚本，不自动切换shell和不立即启动zsh
+        CHSH=no RUNZSH=no sh "$TEMP_INSTALL_SCRIPT" || {
+            echo "❌ Oh My Zsh 安装脚本执行失败。"
+            rm -f "$TEMP_INSTALL_SCRIPT"
+            exit 1
+        }
+        
+        # 清理临时文件
+        rm -f "$TEMP_INSTALL_SCRIPT"
+    else
+        echo "❌ Oh My Zsh 安装脚本下载失败。请检查网络连接或尝试更换安装URL。"
         exit 1
-    }
+    fi
 
     if [ -d "$OHMYZSH_DIR" ]; then
         echo "✅ Oh My Zsh 安装成功."
-         # Oh My Zsh installer copies .zshrc, let's make sure it exists
+        # Oh My Zsh installer copies .zshrc, let's make sure it exists
         if [ ! -f "$HOME/.zshrc" ]; then
-             echo "⚠️ Oh My Zsh 安装成功，但 ~/.zshrc 文件未生成。请检查安装过程。"
+             echo "⚠️ Oh My Zsh 安装成功，但 ~/.zshrc 文件未生成。创建备用配置文件..."
              # Attempt to copy template if it exists
              if [ -f "$OHMYZSH_DIR/templates/zshrc.zsh-template" ]; then
                  cp "$OHMYZSH_DIR/templates/zshrc.zsh-template" "$HOME/.zshrc"
                  echo "ℹ️ 已从模板创建 ~/.zshrc 文件。"
              else
-                 echo "❌ 无法找到 ~/.zshrc 模板文件。后续配置可能失败。"
-                 # Continue, but user will likely need manual intervention
+                 echo "❌ 无法找到 ~/.zshrc 模板文件。创建最小配置..."
+                 cat > "$HOME/.zshrc" << EOL
+# 基本 Oh-My-Zsh 配置
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+plugins=(git)
+source $ZSH/oh-my-zsh.sh
+EOL
+                echo "✅ 已创建基本 ~/.zshrc 文件。"
              fi
         fi
     else
@@ -133,7 +166,13 @@ if [ -d "$AUTOSUGGESTIONS_DIR" ]; then
     echo "✅ zsh-autosuggestions 插件已安装."
 else
     echo "📦 安装 zsh-autosuggestions 插件..."
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$AUTOSUGGESTIONS_DIR" || echo "⚠️ zsh-autosuggestions 插件安装失败。请手动检查问题。"
+    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$AUTOSUGGESTIONS_DIR" || {
+        echo "⚠️ zsh-autosuggestions 插件安装失败。"
+        echo "尝试使用国内镜像源安装..."
+        git clone --depth=1 https://gitee.com/mirrors/zsh-autosuggestions "$AUTOSUGGESTIONS_DIR" || {
+            echo "❌ zsh-autosuggestions 插件安装失败。请手动检查问题。"
+        }
+    }
 fi
 
 # --- 5. Install zsh-syntax-highlighting plugin ---
@@ -142,57 +181,65 @@ if [ -d "$HIGHLIGHTING_DIR" ]; then
     echo "✅ zsh-syntax-highlighting 插件已安装."
 else
     echo "📦 安装 zsh-syntax-highlighting 插件..."
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting "$HIGHLIGHTING_DIR" || echo "⚠️ zsh-syntax-highlighting 插件安装失败。请手动检查问题。"
+    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting "$HIGHLIGHTING_DIR" || {
+        echo "⚠️ zsh-syntax-highlighting 插件安装失败。"
+        echo "尝试使用国内镜像源安装..."
+        git clone --depth=1 https://gitee.com/mirrors/zsh-syntax-highlighting "$HIGHLIGHTING_DIR" || {
+            echo "❌ zsh-syntax-highlighting 插件安装失败。请手动检查问题。"
+        }
+    }
 fi
 
 # --- 6. Configure plugins in .zshrc ---
 ZSHRC="$HOME/.zshrc"
-SED_INPLACE=""
-
-# Handle macOS sed syntax
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  SED_INPLACE="-i ''"
-else
-  SED_INPLACE="-i"
-fi
-
 echo "📝 配置 ~/.zshrc 文件..."
 
-if [ -f "$ZSHRC" ]; then
-    # Ensure plugins line exists and is not commented out
-    if ! grep -q "^\s*plugins=(.*)" "$ZSHRC"; then
-        echo "ℹ️ 在 $ZSHRC 中添加 'plugins=(git)' 行..."
-        # Add the plugins line after ZSH_THEME= line if it exists, otherwise append
-        if grep -q "ZSH_THEME=" "$ZSHRC"; then
-            eval "sed $SED_INPLACE '/^ZSH_THEME=/a plugins=(git)' \"$ZSHRC\""
-        else
-             echo "plugins=(git)" >> "$ZSHRC" # Append if no ZSH_THEME line
+update_plugins() {
+    # 读取现有的plugins行
+    local plugins_line=$(grep -E "^[[:space:]]*plugins=\([^)]*\)" "$ZSHRC" || echo "plugins=(git)")
+    
+    # 为添加的插件名称创建一个临时文件
+    local tmp_file=$(mktemp)
+    echo "$plugins_line" > "$tmp_file"
+    
+    # 检查并添加插件
+    for plugin in "$@"; do
+        if ! grep -q "$plugin" "$tmp_file"; then
+            # 在tmp_file中更新插件列表
+            sed -i.bak "s/plugins=(\(.*\))/plugins=(\1 $plugin)/" "$tmp_file"
         fi
-         # Re-check if plugins line is now there
-         if ! grep -q "^\s*plugins=(.*)" "$ZSHRC"; then
-             echo "❌ 无法在 $ZSHRC 中找到或创建 'plugins=(...)' 行。请手动将 'plugins=(git)' 添加到 $ZSHRC。"
-         fi
+    done
+    
+    # 获取更新后的插件行
+    local new_plugins_line=$(cat "$tmp_file")
+    
+    # 如果.zshrc中有plugins行，则替换它；否则添加新行
+    if grep -q "^[[:space:]]*plugins=(" "$ZSHRC"; then
+        # 使用perl处理，避免sed在不同系统上的差异
+        perl -i -pe "s/^[[:space:]]*plugins=\([^)]*\)/$new_plugins_line/" "$ZSHRC"
+    else
+        # 如果没有找到plugins行，添加到文件末尾
+        echo "$new_plugins_line" >> "$ZSHRC"
     fi
+    
+    # 清理临时文件
+    rm -f "$tmp_file" "$tmp_file.bak"
+}
 
-    # Add zsh-autosuggestions if not already in the plugins list
-    # Check if the plugins line exists before trying to modify it
-    if grep -q "^\s*plugins=(.*)" "$ZSHRC" && ! grep -q "zsh-autosuggestions" "$ZSHRC"; then
-        echo "    - 添加 zsh-autosuggestions 到 plugins 列表..."
-        # Use sed to find the line starting with plugins=( and insert the plugin before the closing )
-        eval "sed $SED_INPLACE 's/^plugins=(\(.*\))$/plugins=(\1 zsh-autosuggestions)/' \"$ZSHRC\"" || echo "⚠️ 添加 zsh-autosuggestions 到 plugins 列表失败。请手动检查 $ZSHRC。"
-    fi
-
-    # Add zsh-syntax-highlighting if not already in the plugins list
-    # Check if the plugins line exists before trying to modify it
-    if grep -q "^\s*plugins=(.*)" "$ZSHRC" && ! grep -q "zsh-syntax-highlighting" "$ZSHRC"; then
-        echo "    - 添加 zsh-syntax-highlighting 到 plugins 列表..."
-        # Use sed to find the line starting with plugins=( and insert the plugin before the closing )
-         eval "sed $SED_INPLACE 's/^plugins=(\(.*\))$/plugins=(\1 zsh-syntax-highlighting)/' \"$ZSHRC\"" || echo "⚠️ 添加 zsh-syntax-highlighting 到 plugins 列表失败。请手动检查 $ZSHRC。"
-    fi
-     echo "✅ 插件配置尝试完成。"
-
+if [ -f "$ZSHRC" ]; then
+    echo "更新插件配置..."
+    update_plugins "zsh-autosuggestions" "zsh-syntax-highlighting"
+    echo "✅ 插件配置完成。"
 else
-    echo "❌ $ZSHRC 文件未找到。Oh My Zsh 安装可能失败或被跳过。请手动配置插件。"
+    echo "❌ $ZSHRC 文件未找到。创建新的配置文件..."
+    cat > "$ZSHRC" << EOL
+# 基本 Oh-My-Zsh 配置
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting)
+source $ZSH/oh-my-zsh.sh
+EOL
+    echo "✅ 已创建新的 ~/.zshrc 文件并添加插件。"
 fi
 
 # --- 7. Set Zsh as default shell (important for future sessions) ---
@@ -202,19 +249,19 @@ ZSH_PATH=$(command -v zsh)
 if [ "$CURRENT_SHELL" = "zsh" ]; then
     echo "✅ 你的默认 Shell 已经是 Zsh。"
 elif [ -n "$ZSH_PATH" ]; then
+    # 确保zsh在/etc/shells中
+    if ! grep -q "$ZSH_PATH" /etc/shells; then
+        echo "将 $ZSH_PATH 添加到 /etc/shells..."
+        echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
+    fi
+    
     echo "⚙️ 尝试将 Zsh ($ZSH_PATH) 设置为默认 Shell (需要输入用户密码)..."
     # Use `chsh` to change the default shell. Requires user password.
-    # Check if running as root, chsh root is different/not needed for user shell
     if [ "$USER" = "root" ]; then
        echo "ℹ️ 检测到当前用户是 root，通常无需为 root 用户更改默认 shell。"
        echo "   如果你需要为其他用户设置 Zsh，请以该用户身份运行脚本。"
-       # Optional: offer to change shell for a specific user
-       # read -p "请输入要更改shell的用户名 (留空则跳过): " target_user
-       # if [ -n "$target_user" ]; then
-       #     chsh -s "$ZSH_PATH" "$target_user"
-       # fi
     else
-        if chsh -s "$ZSH_PATH" "$USER"; then
+        if chsh -s "$ZSH_PATH"; then
             echo "✅ Zsh 已设置为你的默认 Shell (对未来登录生效)。"
         else
             echo "❌ 设置默认 Shell 失败。请尝试手动运行 'chsh -s $(command -v zsh)' 并输入密码。"
@@ -232,10 +279,8 @@ echo "----------------------------------------------------"
 echo "➡️ **现在将立即切换到配置好的 Zsh 环境...**"
 echo "----------------------------------------------------"
 
-# Replace the current shell process with a Zsh process.
-# This automatically loads the updated .zshrc.
-# This must be the very last command that executes successfully.
-exec zsh
+# 确保以非交互方式启动zsh以避免阻塞
+exec zsh -l
 
 # This line will only be reached if 'exec zsh' fails
-echo "❌ 切换到 Zsh 失败。请手动运行 'exec zsh' 或关闭并重新打开终端。"
+echo "❌ 切换到 Zsh 失败。请手动运行 'zsh' 或关闭并重新打开终端。"
