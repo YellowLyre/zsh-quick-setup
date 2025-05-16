@@ -98,7 +98,7 @@ else
     echo "📦 安装 Oh My Zsh..."
     # Set CHSH=no and RUNZSH=no to prevent the Oh My Zsh installer from
     # changing default shell and immediately starting zsh. We handle this later.
-    CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/install.sh)" || {
+    CHSH=no RUNZSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || {
         echo "❌ Oh My Zsh 安装脚本下载或执行失败。请检查网络连接或curl。"
         exit 1
     }
