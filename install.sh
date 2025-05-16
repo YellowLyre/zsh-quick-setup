@@ -242,35 +242,63 @@ EOL
     echo "✅ 已创建新的 ~/.zshrc 文件并添加插件。"
 fi
 
-# --- 7. Set Zsh as default shell (important for future sessions) ---
+# --- 7. Set Zsh as default shell (improved for permanent switch) ---
 CURRENT_SHELL=$(basename "$SHELL")
 ZSH_PATH=$(command -v zsh)
 
-if [ "$CURRENT_SHELL" = "zsh" ]; then
-    echo "✅ 你的默认 Shell 已经是 Zsh。"
-elif [ -n "$ZSH_PATH" ]; then
-    # 确保zsh在/etc/shells中
-    if ! grep -q "$ZSH_PATH" /etc/shells; then
-        echo "将 $ZSH_PATH 添加到 /etc/shells..."
-        echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null
-    fi
-    
-    echo "⚙️ 尝试将 Zsh ($ZSH_PATH) 设置为默认 Shell (需要输入用户密码)..."
-    # Use `chsh` to change the default shell. Requires user password.
-    if [ "$USER" = "root" ]; then
-       echo "ℹ️ 检测到当前用户是 root，通常无需为 root 用户更改默认 shell。"
-       echo "   如果你需要为其他用户设置 Zsh，请以该用户身份运行脚本。"
-    else
-        if chsh -s "$ZSH_PATH"; then
-            echo "✅ Zsh 已设置为你的默认 Shell (对未来登录生效)。"
-        else
-            echo "❌ 设置默认 Shell 失败。请尝试手动运行 'chsh -s $(command -v zsh)' 并输入密码。"
-        fi
-    fi
-else
-    echo "❌ 未找到 Zsh 可执行文件。无法设置默认 Shell。"
+# 确保zsh在/etc/shells中
+if [ -n "$ZSH_PATH" ] && ! grep -q "$ZSH_PATH" /etc/shells; then
+    echo "将 $ZSH_PATH 添加到 /etc/shells..."
+    echo "$ZSH_PATH" | sudo tee -a /etc/shells > /dev/null || {
+        echo "⚠️ 无法添加 Zsh 到 /etc/shells，但将继续尝试设置..."
+    }
 fi
 
+if [ "$CURRENT_SHELL" = "zsh" ]; then
+    echo "✅ 你的默认 Shell 已经是 Zsh。"
+else
+    if [ -n "$ZSH_PATH" ]; then
+        echo "⚙️ 尝试将 Zsh ($ZSH_PATH) 设置为默认 Shell..."
+        
+        # 尝试用多种方法设置默认shell
+        if [ "$USER" = "root" ]; then
+            echo "ℹ️ 检测到当前用户是 root，正在设置 Zsh 为默认 shell..."
+            chsh -s "$ZSH_PATH" || {
+                echo "⚠️ 为 root 用户设置默认 shell 失败，尝试其他方法..."
+            }
+        else
+            # 尝试使用chsh命令
+            chsh -s "$ZSH_PATH" || {
+                echo "⚠️ 使用 chsh 设置默认 shell 失败，尝试其他方法..."
+                # 尝试直接修改/etc/passwd (需要root权限)
+                sudo sed -i.bak "s#^\($USER:[^:]*:[^:]*:[^:]*:[^:]*:\)[^:]*\(.*\)#\1$ZSH_PATH\2#" /etc/passwd || {
+                    echo "⚠️ 修改 /etc/passwd 失败，尝试最后方法..."
+                    # 在.bashrc或.profile中添加exec zsh
+                    for rc_file in ~/.bashrc ~/.bash_profile ~/.profile; do
+                        if [ -f "$rc_file" ]; then
+                            if ! grep -q "exec zsh" "$rc_file"; then
+                                echo "添加 'exec zsh' 到 $rc_file..."
+                                echo -e "\n# 自动切换到 Zsh\nif [ -x \"$ZSH_PATH\" ]; then\n    exec \"$ZSH_PATH\" -l\nfi" >> "$rc_file"
+                                echo "✅ 已在 $rc_file 中添加自动切换到 Zsh 的配置。"
+                            fi
+                        fi
+                    done
+                }
+            }
+        fi
+        
+        # 验证是否成功
+        CURRENT_DEFAULT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
+        if [ "$CURRENT_DEFAULT_SHELL" = "$ZSH_PATH" ]; then
+            echo "✅ Zsh 已永久设置为默认 Shell！"
+        else
+            echo "ℹ️ 已尝试多种方法设置 Zsh 为默认 Shell。"
+            echo "   如果在下次登录时未自动使用 Zsh，请手动运行 'chsh -s $(command -v zsh)'。"
+        fi
+    else
+        echo "❌ 未找到 Zsh 可执行文件。无法设置默认 Shell。"
+    fi
+fi
 
 # --- 8. Final steps and immediate switch to Zsh ---
 echo ""
@@ -278,6 +306,9 @@ echo "🎉 安装和配置已完成！"
 echo "----------------------------------------------------"
 echo "➡️ **现在将立即切换到配置好的 Zsh 环境...**"
 echo "----------------------------------------------------"
+
+# 添加一个标记文件表示脚本已成功运行过一次
+touch "$HOME/.zsh_setup_complete"
 
 # 确保以非交互方式启动zsh以避免阻塞
 exec zsh -l
