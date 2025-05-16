@@ -9,14 +9,17 @@ if ! command -v zsh >/dev/null 2>&1; then
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     brew install zsh
   else
-    echo "Unsupported OS. Please install zsh manually."
+    echo "❌ Unsupported OS. Please install zsh manually."
     exit 1
   fi
 else
   echo "✅ Zsh is already installed."
 fi
 
-echo "🌟 Installing oh-my-zsh..."
+echo "🚀 Temporarily switching to Zsh to install Oh My Zsh..."
+
+# 将 oh-my-zsh 安装逻辑写入临时文件
+cat << 'EOF' > /tmp/zsh_installer.zsh
 export RUNZSH=no
 export CHSH=no
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -34,8 +37,13 @@ sed -i.bak '/^plugins=/ s/)/ zsh-autosuggestions zsh-syntax-highlighting)/' ~/.z
 
 echo "🔄 Sourcing .zshrc..."
 source ~/.zshrc
+EOF
 
-echo "🚀 Changing default shell to zsh (you may be prompted for password)..."
+# 使用 zsh 执行安装逻辑
+zsh /tmp/zsh_installer.zsh
+rm /tmp/zsh_installer.zsh
+
+echo "🔁 Changing default shell to Zsh..."
 chsh -s "$(which zsh)"
 
-echo "✅ Done! Please restart your terminal to use Zsh."
+echo "✅ All done! Please restart your terminal to start using Zsh."
