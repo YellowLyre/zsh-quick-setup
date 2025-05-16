@@ -16,7 +16,7 @@ A one-command script to install Zsh, Oh My Zsh, and essential plugins like **zsh
 ## 📦 One-liner Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/your-username/zsh-quick-setup/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Paulwisley/zsh-quick-setup/main/install.sh)
 ```
 
  ## 🛠 Manual Installation
