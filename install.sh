@@ -94,6 +94,8 @@ install_package zsh
 OHMYZSH_DIR="$HOME/.oh-my-zsh"
 # 使用最新的安装URL
 OHMYZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+# 使用国内的镜像源
+OHMYZSH_INSTALL_URL="https://gitee.com/mirrors/oh-my-zsh/raw/master/tools/install.sh"
 
 if [ -d "$OHMYZSH_DIR" ]; then
     echo "✅ Oh My Zsh 已安装."
